@@ -32,9 +32,9 @@ function render(root) {
   root.innerHTML = `
     <div class="row-between" style="margin-bottom:10px">
       <h1 class="big">تجاربي</h1>
-      <button class="btn btn-outline btn-sm" data-act="new">${icon('plus')} ابدئي تجربة</button>
+      <button class="btn btn-outline btn-sm" data-act="new" data-tour="trials-new">${icon('plus')} ابدئي تجربة</button>
     </div>
-    <h2 class="section-label">الشغالة</h2>
+    <h2 class="section-label" data-tour="trials-active">الشغالة</h2>
     ${act.length ? act.map(activeHTML).join('') : `<div class="card empty"><p>ما عندك تجربة شغالة. ابحثي عن أكلة وجربيها، أو ابدئي من "أكلاتي".</p>
       <button class="btn btn-primary" data-act="search">${icon('search')} أقدر آكل؟</button></div>`}
     <h2 class="section-label">المنتهية</h2>

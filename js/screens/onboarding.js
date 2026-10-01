@@ -58,7 +58,8 @@ export function mountOnboarding(root, onDone) {
         <div class="time-row">
           <label class="field"><span>من</span><input class="input" type="time" name="from" value="${DEFAULT_WORK.from}"></label>
           <label class="field"><span>إلى</span><input class="input" type="time" name="to" value="${DEFAULT_WORK.to}"></label>
-        </div>`),
+        </div>
+        <p class="note">إذا أوقاتك تتغير كل أسبوع: حطي هنا جدولك المعتاد، وبعدين تعبين جدول كل أسبوع بضغطة من شاشة "اليوم" أو الإعدادات.</p>`),
       bind() {
         let days = DEFAULT_WORK.days.map(String);
         bindChips(root, (_k, v) => { days = v; });

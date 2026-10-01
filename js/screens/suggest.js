@@ -41,12 +41,12 @@ function render(root) {
     <h1 class="big" style="margin-bottom:12px">اقترح لي</h1>
     <section class="card">
       <p class="sym-label" style="margin-top:0">طاقتك الحين؟</p>
-      <div class="seg" role="group">${ENERGY.map((e) => `<button class="chip" data-act="energy" data-id="${e.id}" aria-pressed="${energy === e.id}">${e.label}</button>`).join('')}</div>
+      <div class="seg" role="group" data-tour="suggest-energy">${ENERGY.map((e) => `<button class="chip" data-act="energy" data-id="${e.id}" aria-pressed="${energy === e.id}">${e.label}</button>`).join('')}</div>
       <p class="sym-label">الوجبة</p>
-      <div class="chips chips-sm">${MEALS.map((x) => `<button class="chip" data-act="meal" data-id="${x.id}" aria-pressed="${m === x.id}">${x.label}</button>`).join('')}</div>
+      <div class="chips chips-sm" data-tour="suggest-meal">${MEALS.map((x) => `<button class="chip" data-act="meal" data-id="${x.id}" aria-pressed="${m === x.id}">${x.label}</button>`).join('')}</div>
       <p class="muted small" style="margin-top:10px">اليوم ${work ? 'دوام' : 'إجازة'}${energy === 'tired' || work ? ' · قدّمت لك السريع وأكل البيت ومن برا' : ''}</p>
     </section>
-    ${shown.length ? shown.map(cardHTML).join('') : `<div class="card empty">
+    ${shown.length ? `<div data-tour="suggest-list">${shown.map(cardHTML).join('')}</div>` : `<div class="card empty">
       <p>ما لقيت اقتراح مناسب لهذي الوجبة. جربي أكلات أكثر وقيّميها، وبتطلع لك هنا.</p>
       <button class="btn btn-primary" data-act="search">${icon('search')} أقدر آكل؟</button></div>`}
     ${list.length > 3 ? `<button class="btn btn-secondary btn-block" data-act="next">غيّر</button>` : ''}

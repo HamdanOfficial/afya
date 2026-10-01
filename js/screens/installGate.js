@@ -1,5 +1,6 @@
 // iPhone Safari keeps website data separate from the Home Screen app, so ask her to install first.
 import { icon } from '../icons.js';
+import { logoSVG } from '../brand.js';
 
 const SKIP_KEY = 'afya-install-skipped';
 
@@ -21,14 +22,14 @@ export function shouldShowGate() {
 export function mountGate(root, onContinue) {
   root.innerHTML = `
     <div class="gate">
-      <div class="gate-logo">${icon('drop')}</div>
+      <div class="gate-logo">${logoSVG(undefined, 72)}</div>
       <h1>ثبّتي "عافية" على الشاشة الرئيسية</h1>
       <p class="muted">عشان يشتغل كتطبيق، وبدون نت، وتبقى بياناتك في مكان واحد.</p>
       <ol class="steps">
         <li><span class="num">1</span><span class="t">اضغطي زر المشاركة تحت في Safari</span>${icon('share')}</li>
         <li><span class="num">2</span><span class="t">انزلي واختاري "إضافة إلى الشاشة الرئيسية"</span>${icon('addSquare')}</li>
         <li><span class="num">3</span><span class="t">اضغطي "إضافة" فوق</span>${icon('check')}</li>
-        <li><span class="num">4</span><span class="t">افتحي التطبيق من أيقونته على الشاشة الرئيسية</span>${icon('drop')}</li>
+        <li><span class="num">4</span><span class="t">افتحي التطبيق من أيقونته على الشاشة الرئيسية</span>${logoSVG(undefined, 28)}</li>
       </ol>
       <button class="link-btn" data-continue>أكمل من المتصفح (بياناتك راح تكون منفصلة عن التطبيق المثبت)</button>
     </div>`;

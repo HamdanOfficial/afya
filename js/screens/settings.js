@@ -1,13 +1,15 @@
 import { state, getSetting, setSetting } from '../store.js';
 import { esc, delegate, chips, bindChips, openSheet, ask, toast } from '../ui.js';
 import { icon } from '../icons.js';
-import { fmtDate, fmtMaybeApprox, dayKey, WEEKDAYS } from '../dates.js';
+import { fmtDate, fmtMaybeApprox, dayKey, addDays, WEEKDAYS } from '../dates.js';
 import {
   MEDICINE, CUP_SIZES, water, work, profile, PROFILE_QUESTIONS, isAnswered, optLabel, optLabels, ENERGY_TIMES,
+  weekStart, weekSchedule,
 } from '../profile.js';
 import { editTreatmentSheet, editAntibioticSheet, profileQuestionSheet } from '../flows.js';
 import { exportBackup, parseBackup, importBackup, wipeAll } from '../backup.js';
 import { APP_VERSION } from '../version.js';
+import { PALETTES, LOGOS, currentPalette, currentLogo, applyPalette, setLogo, logoSVG } from '../brand.js';
 
 const DAY_OPTS = WEEKDAYS.map((label, id) => ({ id: String(id), label }));
 
@@ -34,7 +36,35 @@ function render(root) {
   const p = profile();
   const lastExport = getSetting('lastExportAt');
   const otherCup = !CUP_SIZES.includes(wat.cupMl);
+  const pal = currentPalette();
+  const logo = currentLogo();
   root.innerHTML = `
+    <h2 class="section-label">المظهر</h2>
+    <section class="card" data-tour="settings-theme">
+      <p class="small muted" style="margin-bottom:8px">اختاري الألوان. النهاري والليلي يتغيرون من زر القمر 🌙 فوق.</p>
+      <div class="pal-grid">
+        ${PALETTES.map((p) => `<button class="pal" data-act="palette" data-id="${p.id}" aria-pressed="${pal === p.id}">
+          <span class="pal-prevs">
+            <span class="pal-prev" data-palette="${p.id}" data-theme="light"><i></i><b></b></span>
+            <span class="pal-prev" data-palette="${p.id}" data-theme="dark"><i></i><b></b></span>
+          </span>
+          <span class="pal-name">${esc(p.label)}</span>
+        </button>`).join('')}
+      </div>
+      <p class="sym-label">الشعار</p>
+      <div class="logo-grid">
+        ${LOGOS.map((l) => `<button class="logo-opt" data-act="logo" data-id="${l.id}" aria-pressed="${logo === l.id}">${logoSVG(l.id, 44)}<span class="small">${esc(l.label)}</span></button>`).join('')}
+      </div>
+    </section>
+
+    <h2 class="section-label">الشروحات</h2>
+    <section class="card">
+      <div class="btn-col">
+        <button class="btn btn-primary" data-act="tour">${icon('sparkle')} شغّلي الجولة السريعة</button>
+        <button class="btn btn-secondary" data-act="help">${icon('help')} شروحات كل قسم</button>
+      </div>
+    </section>
+
     <h2 class="section-label">العلاج</h2>
     <section class="card">
       <p class="small muted">الدواء</p><p dir="ltr" style="text-align:right">${esc(MEDICINE)}</p>
@@ -51,12 +81,21 @@ function render(root) {
     </section>
 
     <h2 class="section-label">الدوام</h2>
-    <section class="card">
-      <div class="field"><span>أيام الدوام</span>${chips('workDays', DAY_OPTS, hasWork ? w.days.map(String) : [], { multi: true, small: true })}</div>
-      <div class="time-row">
-        <label class="field"><span>من</span><input class="input" type="time" data-field="from" value="${esc(hasWork ? w.from : '')}"></label>
-        <label class="field"><span>إلى</span><input class="input" type="time" data-field="to" value="${esc(hasWork ? w.to : '')}"></label>
+    <section class="card" data-tour="settings-schedule">
+      <p class="small muted" style="margin-bottom:8px">إذا أوقات دوامك تتغير كل أسبوع، عبّي جدول كل أسبوع.</p>
+      <div class="btn-col">
+        <button class="btn btn-primary" data-act="schedule" data-week="${weekStart()}">${icon('calendar')} جدول هذا الأسبوع ${weekSchedule(weekStart()) ? '✔️' : ''}</button>
+        <button class="btn btn-secondary" data-act="schedule" data-week="${addDays(weekStart(), 7)}">${icon('calendar')} جدول الأسبوع الجاي ${weekSchedule(addDays(weekStart(), 7)) ? '✔️' : ''}</button>
       </div>
+      <details style="margin-top:12px">
+        <summary class="summary-toggle" style="font-size:16px">الجدول المعتاد ${icon('chevron')}</summary>
+        <p class="note" style="margin:4px 0 10px">يُستخدم لأي أسبوع ما عبّيتي له جدول.</p>
+        <div class="field"><span>أيام الدوام</span>${chips('workDays', DAY_OPTS, hasWork ? w.days.map(String) : [], { multi: true, small: true })}</div>
+        <div class="time-row">
+          <label class="field"><span>من</span><input class="input" type="time" data-field="from" value="${esc(hasWork ? w.from : '')}"></label>
+          <label class="field"><span>إلى</span><input class="input" type="time" data-field="to" value="${esc(hasWork ? w.to : '')}"></label>
+        </div>
+      </details>
     </section>
 
     <h2 class="section-label">الماء</h2>
@@ -74,7 +113,7 @@ function render(root) {
     </section>
 
     <h2 class="section-label">النسخة الاحتياطية</h2>
-    <section class="card">
+    <section class="card" data-tour="settings-backup">
       <p class="muted small" style="margin-bottom:10px">${lastExport ? `آخر نسخة: ${esc(fmtDate(dayKey(new Date(lastExport))))}` : 'ما سويتي نسخة احتياطية للحين.'}</p>
       <div class="btn-row">
         <button class="btn btn-primary" data-act="export">${icon('share')} تصدير</button>
@@ -155,6 +194,11 @@ export default {
     };
     root.addEventListener('change', onChange);
     const off = delegate(root, {
+      schedule: (el) => app.go(`schedule/${el.dataset.week}`),
+      palette: async (el) => { applyPalette(el.dataset.id, { save: true }); await setSetting('palette', el.dataset.id); },
+      logo: async (el) => { setLogo(el.dataset.id); await setSetting('logo', el.dataset.id); app.refreshHeader(); },
+      tour: () => app.startTour(),
+      help: () => app.go('help'),
       treatment: () => editTreatmentSheet(),
       'new-treatment': () => editTreatmentSheet({ fresh: true }),
       antibiotic: () => editAntibioticSheet(),

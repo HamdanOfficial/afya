@@ -2,15 +2,18 @@ import { state, saveFood } from '../store.js';
 import { esc, delegate, pctBadge, ratingBadge, confidenceText, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { matchesAny, exactAny } from '../normalize.js';
-import { resolve, foodNames, refNames, refById, comparePct } from '../scoring.js';
+import { resolve, foodNames, refNames, refById, refRoot, comparePct } from '../scoring.js';
 import { buildFood } from '../actions.js';
 import { startTrialFlow, addFoodSheet } from '../flows.js';
 
 let lastQuery = '';
 
+/**
+ * personal: her own entries (or reference items covered by her category)
+ * general:  reference groups [{ root, matched:Set<id> }] — a base food with its variants
+ */
 export function searchAll(q) {
   const personal = [];
-  const general = [];
   const seenFood = new Set();
   for (const f of [...state.foods].sort(comparePct)) {
     if (matchesAny(q, foodNames(f))) {
@@ -18,23 +21,33 @@ export function searchAll(q) {
       seenFood.add(f.id);
     }
   }
+  const groups = new Map();
   const refs = state.ref.items.filter((r) => matchesAny(q, refNames(r)));
   refs.sort((a, b) => Number(exactAny(q, refNames(b))) - Number(exactAny(q, refNames(a))));
   for (const r of refs) {
     const res = resolve({ refItem: r }, state.foods, state.ref);
-    if (res.food && seenFood.has(res.food.id)) continue;
-    if (res.food || res.source === 'category') {
-      personal.push({ refItem: r, food: res.food, res });
-      if (res.food) seenFood.add(res.food.id);
-    } else general.push({ refItem: r, res });
+    if (res.food) {
+      if (!seenFood.has(res.food.id)) {
+        personal.push({ refItem: r, food: res.food, res });
+        seenFood.add(res.food.id);
+      }
+      continue;
+    }
+    if (res.source === 'category') {
+      personal.push({ refItem: r, food: null, res });
+      continue;
+    }
+    const root = refRoot(r, state.ref);
+    if (!groups.has(root.id)) groups.set(root.id, { root, matched: new Set() });
+    groups.get(root.id).matched.add(r.id);
   }
-  return { personal, general };
+  return { personal, general: [...groups.values()] };
 }
 
-function refDetails(r) {
+function refDetails(r, { compact = false } = {}) {
   return `<div class="food-meta">${ratingBadge(r)}<span class="muted small">${esc(confidenceText(r))}</span></div>
-    <p class="reason">${esc(r.reason)}</p>
-    ${r.rating !== 'green' && r.alternative ? `<p class="small"><b>البديل:</b> ${esc(r.alternative)}</p>` : ''}`;
+    <p class="reason ${compact ? 'small' : ''}">${esc(r.reason)}</p>
+    ${!compact && r.rating !== 'green' && r.alternative ? `<p class="small"><b>البديل:</b> ${esc(r.alternative)}</p>` : ''}`;
 }
 
 function personalCard({ food, refItem, res }) {
@@ -62,20 +75,42 @@ function personalCard({ food, refItem, res }) {
   </article>`;
 }
 
-function generalCard({ refItem: r }) {
+function variantRow(v, matched) {
+  const res = resolve({ refItem: v }, state.foods, state.ref);
+  const mine = res.source === 'self' || res.source === 'category';
+  return `<div class="variant ${matched ? 'variant-hit' : ''}">
+    <div class="row-between" style="align-items:flex-start">
+      <b>${esc(v.name)}</b>
+      ${mine ? pctBadge(res.info) : ratingBadge(v)}
+    </div>
+    <p class="small muted" style="margin-top:2px">${mine ? (res.source === 'category' ? `من فئة ${esc(res.catFood.name)} في أكلاتك` : 'مجربة عندك') : esc(v.reason)}</p>
+    <div class="variant-actions">
+      <button class="link-btn" data-act="try" data-ref="${esc(v.id)}" data-food="${esc(res.food?.id || '')}">جربيها</button>
+      ${res.food ? `<button class="link-btn" data-act="open" data-food="${esc(res.food.id)}">التفاصيل</button>`
+        : `<button class="link-btn" data-act="add" data-ref="${esc(v.id)}">أضيفيها لأكلاتي</button>`}
+    </div>
+  </div>`;
+}
+
+function generalCard({ root, matched }) {
+  // Highlight variants only when the search was specific ("بطاطس مقلية"), not for the general name ("بطاطس").
+  const specific = !matched.has(root.id);
+  const variants = [...root.variants].sort((a, b) => Number(matched.has(b.id)) - Number(matched.has(a.id)));
+  const rootRes = resolve({ refItem: root }, state.foods, state.ref);
   return `<article class="card result-card">
-    <div class="row-between"><h3 class="big" style="font-size:20px">${esc(r.name)}</h3><span class="badge-src">معلومة عامة</span></div>
-    ${refDetails(r)}
+    <div class="row-between"><h3 class="big" style="font-size:20px">${esc(root.name)}</h3><span class="badge-src">معلومة عامة</span></div>
+    ${refDetails(root)}
+    ${variants.length ? `<p class="sym-label">حسب طريقة التحضير</p><div class="variants">${variants.map((v) => variantRow(v, specific && matched.has(v.id))).join('')}</div>` : ''}
     <div class="btn-row" style="margin-top:12px">
-      <button class="btn btn-primary btn-sm" data-act="try" data-ref="${esc(r.id)}">جربيها</button>
-      <button class="btn btn-secondary btn-sm" data-act="add" data-ref="${esc(r.id)}">أضيفيها لأكلاتي</button>
+      <button class="btn btn-primary btn-sm" data-act="try" data-ref="${esc(root.id)}" data-food="${esc(rootRes.food?.id || '')}">جربيها</button>
+      <button class="btn btn-secondary btn-sm" data-act="add" data-ref="${esc(root.id)}">أضيفيها لأكلاتي</button>
     </div>
   </article>`;
 }
 
 function renderResults(box, q) {
   if (!q.trim()) {
-    box.innerHTML = `<p class="muted" style="text-align:center;padding:24px 8px">اكتبي اسم أي أكلة أو مشروب، وأقولك وش أعرف عنها.</p>`;
+    box.innerHTML = `<p class="muted" style="text-align:center;padding:24px 8px">اكتبي اسم أي أكلة أو مشروب أو بهار، وأقولك وش أعرف عنه.<br><span class="small">أكثر من 400 أكلة ومشروب، ولكل وحدة طرق التحضير المختلفة.</span></p>`;
     return;
   }
   const { personal, general } = searchAll(q);
@@ -95,7 +130,7 @@ export default {
   title: 'أقدر آكل؟',
   mount(root, _p, app) {
     root.innerHTML = `
-      <div class="search-wrap">
+      <div class="search-wrap" data-tour="search-input">
         ${icon('search')}
         <label class="sr-only" for="q">ابحثي عن أكلة</label>
         <input id="q" class="input search-input" type="search" placeholder="وش تبين تاكلين أو تشربين؟" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(lastQuery)}">
@@ -107,7 +142,7 @@ export default {
     input.addEventListener('input', () => { lastQuery = input.value; draw(); });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
     draw();
-    input.focus({ preventScroll: true });
+    if (!app.touring) input.focus({ preventScroll: true });
 
     const off = delegate(root, {
       try: (el) => {

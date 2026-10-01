@@ -4,11 +4,14 @@ import { esc, delegate, snackbar, pctBadge, ratingBadge } from '../ui.js';
 import { icon } from '../icons.js';
 import { activeAlerts, LEVELS, RED_FLAGS } from '../alerts.js';
 import { readyTrials } from '../actions.js';
-import { treatmentStatus, water, isWorkDay, scheduledWorkDay, profileProgress } from '../profile.js';
+import {
+  treatmentStatus, water, isWorkDay, scheduledWorkDay, profileProgress, daySchedule, nextWeekMissing, weekStart, fmtHours,
+} from '../profile.js';
 import { rankSuggestions, mealForHour, pageOf } from '../suggest.js';
 import { MEALS, labelOf } from '../actions.js';
 import { RATE_BUTTONS, rateFlow, editTreatmentSheet, profileQuestionSheet, nextUnanswered } from '../flows.js';
 import { exportBackup } from '../backup.js';
+import { ring } from './report.js';
 
 let suggestPage = 0;
 
@@ -35,6 +38,28 @@ function alertsHTML(app) {
     </div>`;
   }
   return html;
+}
+
+function ringsHTML(d, tr) {
+  const w = water();
+  const n = d.water || 0;
+  const week = Array.from({ length: 7 }, (_, i) => state.days[addDays(dayKey(), -i)]).filter(Boolean);
+  const med = week.filter((x) => x.med === true).length;
+  let third;
+  if (tr.set && !tr.ended) third = ring(tr.dayN / tr.total, 'العلاج', `${tr.dayN}/${tr.total}`);
+  else {
+    const rec = week.filter((x) => x.urgency || x.burning);
+    const calm = rec.filter((x) => (!x.urgency || x.urgency === 'none') && (!x.burning || x.burning === 'none')).length;
+    third = ring(rec.length ? calm / rec.length : 0, 'أيام مرتاحة', rec.length ? `${calm}/${rec.length}` : '–', 'ok');
+  }
+  return `<button class="card rings-card" data-act="go" data-to="report" data-tour="today-rings" aria-label="افتحي تقريري">
+    <div class="rings">
+      ${ring(n / Math.max(1, w.goalCups), 'الماء اليوم', `${n}/${w.goalCups}`, n >= w.goalCups ? 'ok' : '')}
+      ${ring(med / 7, 'الدواء (7 أيام)', `${med}/7`, med >= 7 ? 'ok' : '')}
+      ${third}
+    </div>
+    <span class="rings-more">${icon('chart')} تقريري</span>
+  </button>`;
 }
 
 function trialsHTML() {
@@ -77,7 +102,7 @@ function waterHTML(d) {
   const w = water();
   const n = d.water || 0;
   const pct = Math.min(100, (n / Math.max(1, w.goalCups)) * 100);
-  return `<section class="card">
+  return `<section class="card" data-tour="today-water">
     <h2 class="card-title">${icon('drop')}الماء</h2>
     <p><b class="big">${n}</b> من ${w.goalCups} أكواب · ${n * w.cupMl} مل</p>
     <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${w.goalCups}" aria-valuenow="${n}" aria-label="الماء"><div style="width:${pct}%"></div></div>
@@ -156,26 +181,31 @@ function render(root, app) {
   const d = getDay(today);
   const tr = treatmentStatus(today);
   const work = isWorkDay(today);
+  const sched = daySchedule(today);
   const flags = d.redFlags || {};
   const open = root.querySelector('details')?.open;
 
   root.innerHTML = `
     ${alertsHTML(app)}
+    ${ringsHTML(d, tr)}
     ${trialsHTML()}
     ${treatmentHTML(tr)}
-    <section class="card">
+    <section class="card" data-tour="today-work">
       <div class="switch-row">
-        <span><b>اليوم دوام؟</b>${d.workOverride != null && d.workOverride !== scheduledWorkDay(today) ? ' <span class="muted small">(لهذا اليوم بس)</span>' : ''}</span>
+        <span><b>اليوم دوام؟</b>${d.workOverride != null && d.workOverride !== scheduledWorkDay(today) ? ' <span class="muted small">(لهذا اليوم بس)</span>' : ''}
+          ${work && sched.work && sched.from ? `<br><span class="muted small">${esc(fmtHours(sched.from, sched.to))}</span>` : ''}</span>
         <button class="switch" role="switch" aria-checked="${work}" aria-label="اليوم دوام" data-act="work"></button>
       </div>
+      ${nextWeekMissing(today) ? `<div class="hr"></div><div class="row-between"><span class="small">ما عبّيتي جدول دوام الأسبوع الجاي</span>
+        <button class="btn btn-secondary btn-sm" data-act="go" data-to="schedule/${addDays(weekStart(today), 7)}">${icon('calendar')} عبّيه</button></div>` : ''}
     </section>
     ${waterHTML(d)}
-    ${!tr.set || !tr.ended ? `<section class="card">
+    ${!tr.set || !tr.ended ? `<section class="card" data-tour="today-med">
       <button class="check-row" data-act="med" aria-pressed="${d.med === true}">
         <span class="box">${d.med ? icon('check') : ''}</span><span>أخذت الدواء اليوم</span>
       </button>
     </section>` : ''}
-    <section class="card">
+    <section class="card" data-tour="today-symptoms">
       <h2 class="card-title">الأعراض اليوم</h2>
       <p class="sym-label">الإلحاح</p>${seg('urgency', d.urgency)}
       <p class="sym-label">الحرقان</p>${seg('burning', d.burning)}
@@ -185,7 +215,7 @@ function render(root, app) {
         <button type="button" class="chip" data-act="constip" data-val="0" aria-pressed="${d.constipation === false}">لا</button>
       </div>
     </section>
-    <section class="card">
+    <section class="card" data-tour="today-flags">
       <h2 class="card-title">${icon('doctor')}أعراض تحتاج طبيب</h2>
       <div class="stack">${RED_FLAGS.map((f) => `
         <button class="check-row danger" data-act="flag" data-id="${f.id}" aria-pressed="${!!flags[f.id]}">
