@@ -1,12 +1,13 @@
 // Builds the text copied by "اسألي Claude" from the current data.
 import { state, getSetting } from './store.js';
-import { dayKey, addDays, diffDays, fmtDate, fmtTime, now } from './dates.js';
+import { dayKey, addDays, diffDays, fmtDate, fmtTime, now, WEEKDAYS } from './dates.js';
 import { foodPct, comparePct } from './scoring.js';
 import { activeTrials } from './actions.js';
 import { levelLabel, RED_FLAGS } from './alerts.js';
 import {
   treatmentStatus, antibioticStatus, water, isWorkDay, workDaysText, profile, MEDICINE_SHORT,
   WORK_TYPES, ENERGY_TIMES, COOKS, PREP_TIMES, CONSTIPATION, optLabel, optLabels,
+  weekStart, weekSchedule, fmtHours,
 } from './profile.js';
 
 const NA = 'ما انذكر';
@@ -45,8 +46,13 @@ function myDataSection(today) {
   const p = profile();
   const w = getSetting('work');
   const workParts = [];
-  if (w?.days?.length) workParts.push(workDaysText(w.days));
-  if (w?.from && w?.to) workParts.push(`من ${w.from} إلى ${w.to}`);
+  const wk = weekSchedule(weekStart(today));
+  if (wk) {
+    workParts.push(`هذا الأسبوع (يتغير كل أسبوع): ${wk.days.map((d, i) => `${WEEKDAYS[i]} ${d.off ? 'إجازة' : fmtHours(d.from, d.to)}`).join('، ')}`);
+  } else {
+    if (w?.days?.length) workParts.push(workDaysText(w.days));
+    if (w?.from && w?.to) workParts.push(`من ${w.from} إلى ${w.to}`);
+  }
   if (p.workType) workParts.push(optLabel(WORK_TYPES, p.workType));
   const energyParts = [];
   if (p.energyHigh?.length) energyParts.push(`عالية: ${optLabels(ENERGY_TIMES, p.energyHigh)}`);

@@ -43,10 +43,45 @@ export function work() {
   return { ...DEFAULT_WORK, ...(getSetting('work') || {}) };
 }
 
-export function scheduledWorkDay(date = dayKey()) {
+// ---------- weekly schedule (her hours change every week) ----------
+// settings.schedules = { [weekStart "YYYY-MM-DD" (Sunday)]: { days: [ {off:true} | {from,to} ] x7 } }
+export function weekStart(date = dayKey()) {
+  return addDays(date, -parseDay(date).getDay());
+}
+
+export function weekSchedule(ws) {
+  return (getSetting('schedules') || {})[ws] || null;
+}
+
+// The usual pattern from onboarding, used for weeks she hasn't filled in.
+export function templateWeek() {
   const w = getSetting('work');
-  if (!w) return false;
-  return (w.days || []).includes(parseDay(date).getDay());
+  if (!w) return null;
+  return { days: Array.from({ length: 7 }, (_, i) => ((w.days || []).includes(i) ? { from: w.from, to: w.to } : { off: true })) };
+}
+
+// { work, from, to, source: 'week' | 'template' | 'none' }
+export function daySchedule(date = dayKey()) {
+  const i = parseDay(date).getDay();
+  const wk = weekSchedule(weekStart(date));
+  if (wk) { const d = wk.days[i] || { off: true }; return { work: !d.off, from: d.from, to: d.to, source: 'week' }; }
+  const t = templateWeek();
+  if (t) { const d = t.days[i]; return { work: !d.off, from: d.from, to: d.to, source: 'template' }; }
+  return { work: false, source: 'none' };
+}
+
+export function scheduledWorkDay(date = dayKey()) {
+  return daySchedule(date).work;
+}
+
+// Show the "fill next week" reminder from Thursday on, if next week is still empty.
+export function nextWeekMissing(today = dayKey()) {
+  if (parseDay(today).getDay() < 4) return false;
+  return !weekSchedule(addDays(weekStart(today), 7));
+}
+
+export function fmtHours(from, to) {
+  return from && to ? `${from} – ${to}` : '';
 }
 
 export function isWorkDay(date = dayKey()) {

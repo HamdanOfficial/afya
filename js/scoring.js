@@ -35,14 +35,19 @@ export function pctLabel(info) {
 export const foodNames = (f) => [f.name, ...(f.aliases || [])];
 export const refNames = (r) => [r.name, ...(r.aliases || [])];
 
-// Reference item whose name or alias equals this name (after normalization).
+// Reference item whose name (first) or alias equals this name (after normalization).
 export function refFor(name, ref) {
-  return ref.items.find((r) => exactAny(name, refNames(r))) || null;
+  return ref.items.find((r) => exactAny(name, [r.name])) ||
+    ref.items.find((r) => exactAny(name, refNames(r))) || null;
 }
 
 export function refById(id, ref) {
-  return id ? ref.items.find((r) => r.id === id) || null : null;
+  if (!id) return null;
+  return ref.byId?.get(id) || ref.items.find((r) => r.id === id) || null;
 }
+
+// The top-level reference item (a variant's parent, or itself).
+export const refRoot = (r, ref) => (r?.parent ? refById(r.parent, ref) || r : r);
 
 // Reference category matching a name, e.g. "الحوامض" / "حوامض".
 export function refCategory(name, ref) {

@@ -22,7 +22,29 @@ export function uid() {
 
 export async function loadRef(url = new URL('../data/reference.json', import.meta.url)) {
   const res = await fetch(url);
-  state.ref = await res.json();
+  state.ref = prepareRef(await res.json());
+}
+
+// Variants ("بطاطس مقلية" under "بطاطس") inherit category, meal types and alternative from their parent.
+export function prepareRef(ref) {
+  const byId = new Map(ref.items.map((r) => [r.id, r]));
+  const children = new Map();
+  for (const r of ref.items) {
+    if (!r.parent) continue;
+    const p = byId.get(r.parent);
+    if (!p) continue;
+    r.category ??= p.category;
+    r.mealTypes ??= p.mealTypes;
+    r.alternative ??= p.alternative || '';
+    if (!children.has(p.id)) children.set(p.id, []);
+    children.get(p.id).push(r);
+  }
+  for (const r of ref.items) {
+    r.alternative ??= '';
+    r.variants = children.get(r.id) || [];
+  }
+  Object.defineProperty(ref, 'byId', { value: byId, enumerable: false });
+  return ref;
 }
 
 export async function loadAll() {

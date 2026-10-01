@@ -11,11 +11,16 @@ import trials from './screens/trials.js';
 import suggest from './screens/suggest.js';
 import settings from './screens/settings.js';
 import doctor from './screens/doctor.js';
+import schedule from './screens/schedule.js';
+import report from './screens/report.js';
+import help from './screens/help.js';
 import { mountOnboarding } from './screens/onboarding.js';
 import { shouldShowGate, mountGate } from './screens/installGate.js';
 import { openAskClaude } from './screens/askClaude.js';
+import { logoSVG, applyPalette } from './brand.js';
+import { maybeStartTour, startTour } from './tour.js';
 
-const ROUTES = { today, foods, search, trials, suggest, settings, doctor, food: foodDetail };
+const ROUTES = { today, foods, search, trials, suggest, settings, doctor, schedule, report, help, food: foodDetail };
 const TABS = [
   { route: 'today', label: 'اليوم', icon: 'today' },
   { route: 'foods', label: 'أكلاتي', icon: 'foods' },
@@ -43,8 +48,7 @@ function chosenTheme() {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', bg));
+  applyPalette();
   const btn = $('#theme-btn');
   if (btn) {
     btn.innerHTML = icon(theme === 'dark' ? 'sun' : 'moon');
@@ -66,12 +70,14 @@ function renderHeader(title, back) {
   const isToday = current?.route === 'today';
   header.innerHTML = `
     ${back ? `<button class="icon-btn back-btn" id="back-btn" aria-label="رجوع">${icon('back')}</button>` : ''}
-    <h1 class="app-title" id="screen-title">${isToday ? `عافية <small>${fmtDate(dayKey(), { year: false, weekday: true })}</small>` : title}</h1>
-    <button class="icon-btn" id="theme-btn"></button>
+    <h1 class="app-title" id="screen-title">${isToday ? `<span class="brand-logo" aria-hidden="true">${logoSVG()}</span>عافية <small>${fmtDate(dayKey(), { year: false, weekday: true })}</small>` : title}</h1>
+    <button class="icon-btn ${current?.route === 'doctor' ? 'on' : ''}" id="doctor-btn" aria-label="متى أراجع الطبيب؟" data-tour="header-doctor">${icon('doctor')}</button>
+    <button class="icon-btn" id="theme-btn" data-tour="header-theme"></button>
     <button class="icon-btn ${current?.route === 'settings' ? 'on' : ''}" id="gear-btn" aria-label="الإعدادات">${icon('gear')}</button>`;
   applyTheme(document.documentElement.dataset.theme);
   $('#theme-btn').addEventListener('click', toggleTheme);
   $('#gear-btn').addEventListener('click', () => app.go('settings'));
+  $('#doctor-btn').addEventListener('click', () => app.go('doctor'));
   $('#back-btn')?.addEventListener('click', () => {
     if (history.state?.inApp) history.back();
     else app.go(back, { replace: true });
@@ -126,6 +132,10 @@ export const app = {
     show(name, params);
   },
   setTitle(t) { const el = $('#screen-title'); if (el) el.textContent = t; },
+  currentRoute() { return current?.route; },
+  refreshHeader() { if (current) renderHeader(current.screen.title, current.screen.back); },
+  touring: false,
+  startTour(name = 'main') { return startTour(app, name); },
   applyUpdate() {
     if (!waitingWorker) { location.reload(); return; }
     updateRequested = true;
@@ -178,6 +188,7 @@ function startApp() {
   const { route, params } = parseHash();
   history.replaceState({ inApp: true }, '', `#/${[route, ...params].join('/')}`);
   show(route, params);
+  maybeStartTour(app);
 }
 
 function bare() {
@@ -209,7 +220,7 @@ async function boot2() {
   }
   if (!getSetting('onboardingDone')) {
     bare();
-    header.innerHTML = `<h1 class="app-title">عافية</h1><button class="icon-btn" id="theme-btn"></button>`;
+    header.innerHTML = `<h1 class="app-title"><span class="brand-logo" aria-hidden="true">${logoSVG()}</span>عافية</h1><button class="icon-btn" id="theme-btn"></button>`;
     applyTheme(document.documentElement.dataset.theme);
     $('#theme-btn').addEventListener('click', toggleTheme);
     mountOnboarding(view, () => startApp());

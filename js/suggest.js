@@ -41,6 +41,7 @@ export function rankSuggestions({ meal, energy = 'normal', workDay = false }, fo
   const refs = [];
   for (const r of ref.items) {
     if (r.rating !== 'green' || !r.mealTypes.includes(meal)) continue;
+    if (r.variants?.length) continue; // suggest the concrete variant ("بطاطس مسلوقة"), not the umbrella item
     if (personalForRef(r, foods)) continue; // already covered (or excluded) by her own list
     const res = resolve({ refItem: r }, foods, ref);
     if (res.source === 'category' && res.pct < 50) continue;
