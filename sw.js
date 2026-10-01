@@ -1,6 +1,6 @@
 // Service worker: precache everything so the app works fully offline.
 // Bump VERSION (and js/version.js) on every release — a new cache name triggers the update bar.
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CACHE = `afya-v${VERSION}`;
 
 const FILES = [
@@ -22,6 +22,7 @@ const FILES = [
   'icons/apple-touch-icon.png',
   'js/app.js',
   'js/actions.js',
+  'js/brand.js',
   'js/alerts.js',
   'js/backup.js',
   'js/claudePrompt.js',
@@ -34,14 +35,18 @@ const FILES = [
   'js/scoring.js',
   'js/store.js',
   'js/suggest.js',
+  'js/tour.js',
   'js/ui.js',
   'js/version.js',
   'js/screens/askClaude.js',
   'js/screens/doctor.js',
   'js/screens/foodDetail.js',
   'js/screens/foods.js',
+  'js/screens/help.js',
   'js/screens/installGate.js',
   'js/screens/onboarding.js',
+  'js/screens/report.js',
+  'js/screens/schedule.js',
   'js/screens/search.js',
   'js/screens/settings.js',
   'js/screens/suggest.js',
