@@ -1,9 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <style>
-    rect { fill: #A9502F; }
-    path { fill: #FFFFFF; }
-    @media (prefers-color-scheme: dark) { rect { fill: #E08A6D; } path { fill: #1F1E1D; } }
+    .bg { fill: #A9502F; } .fg { fill: #FFFFFF; } .core { fill: #A9502F; stroke: #FFFFFF; }
+    @media (prefers-color-scheme: dark) { .bg, .core { fill: #E08A6D; } .fg { fill: #1F1E1D; } .core { stroke: #1F1E1D; } }
   </style>
-  <rect width="100" height="100" rx="22"/>
-  <path d="M50 20.6C47.5 33.2 29 39.6 29 58.4a21 21 0 0 0 42 0C71 39.6 52.5 33.2 50 20.6Z"/>
+  <rect class="bg" width="100" height="100" rx="24"/>
+  <g class="fg">
+    <ellipse cx="50" cy="29" rx="8" ry="15"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(45 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(90 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(135 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(180 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(225 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(270 50 50)"/>
+    <ellipse cx="50" cy="29" rx="8" ry="15" transform="rotate(315 50 50)"/>
+  </g>
+  <circle class="core" cx="50" cy="50" r="10" stroke-width="4"/>
 </svg>
